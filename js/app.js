@@ -40,6 +40,9 @@ const app = {
             case 'banks':
                 this.viewBanks();
                 break;
+            case 'customers':
+                this.viewCustomers();
+                break;
             case 'transactions':
                 this.viewTransactions();
                 break;
@@ -556,7 +559,10 @@ const app = {
         document.getElementById('txn-bank').innerHTML = banks.map(b => `<option value="${b.id}">${b.bank_name} - ${b.account_number} (${b.account_holder})</option>`).join('');
 
         this.cart = { spareparts: [], services: [] };
-        document.getElementById('txn-form').addEventListener('submit', (e) => this.processTransaction(e));
+        const form = document.getElementById('txn-form');
+        if (form) {
+            form.onsubmit = (e) => this.processTransaction(e);
+        }
     },
 
     toggleBankSelect(method) {
@@ -694,6 +700,9 @@ const app = {
 
     async processTransaction(e) {
         e.preventDefault();
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+        if (submitBtn.disabled) return;
+
         const customer_name = document.getElementById('txn-customer').value;
         const license_plate = document.getElementById('txn-plate').value;
         const payment_method = document.getElementById('txn-payment').value;
@@ -706,6 +715,12 @@ const app = {
             UI.showToast('Tambahkan minimal satu barang atau jasa', 'danger');
             return;
         }
+
+        // Disable button & show loading
+        const originalBtnHtml = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i data-lucide="loader-2" class="spin"></i> MEMPROSES...';
+        if (window.lucide) lucide.createIcons();
 
         const data = {
             customer_name,
@@ -736,7 +751,11 @@ const app = {
                 this.printTransaction(response.id);
             }
             this.viewHistory();
-        } catch (err) {}
+        } catch (err) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnHtml;
+            if (window.lucide) lucide.createIcons();
+        }
     },
 
     async printTransaction(id) {
@@ -745,6 +764,83 @@ const app = {
         setTimeout(() => {
             window.print();
         }, 500);
+    },
+
+    // --- CUSTOMERS VIEW ---
+    async viewCustomers() {
+        const container = document.getElementById('view-container');
+        container.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h1>Data Pelanggan</h1>
+                <div style="display: flex; gap: 1rem;">
+                    <input type="text" placeholder="Cari pelanggan..." onkeyup="app.filterCustomers(this.value)" style="width: 250px; background: rgba(255,255,255,0.05);">
+                </div>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>Nama Pelanggan</th><th>Plat Nomor</th><th>Aksi</th></tr></thead>
+                    <tbody id="customers-list"></tbody>
+                </table>
+            </div>
+        `;
+        this.loadCustomers();
+    },
+
+    async loadCustomers() {
+        try {
+            const data = await API.get('customers.php');
+            const list = document.getElementById('customers-list');
+            
+            if (data.length === 0) {
+                list.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 2rem; color: var(--text-muted);">Belum ada data pelanggan</td></tr>';
+                return;
+            }
+
+            list.innerHTML = data.map(item => `
+                <tr>
+                    <td><div style="font-weight: 600;">${item.name}</div></td>
+                    <td>${item.license_plate}</td>
+                    <td>
+                        <button class="btn" onclick="app.deleteCustomer(${item.id})" style="background: var(--danger); width: auto; padding: 0.25rem 0.75rem;">Hapus</button>
+                    </td>
+                </tr>
+            `).join('');
+        } catch (e) {}
+    },
+
+    async filterCustomers(val) {
+        const query = val.toLowerCase();
+        const rows = document.querySelectorAll('#customers-list tr');
+        rows.forEach(row => {
+            if (row.cells.length < 2) return;
+            const text = row.cells[0].textContent.toLowerCase() + ' ' + row.cells[1].textContent.toLowerCase();
+            row.style.display = text.includes(query) ? '' : 'none';
+        });
+    },
+
+    async deleteCustomer(id) {
+        const result = await Swal.fire({
+            title: 'Hapus Pelanggan?',
+            text: "Data pelanggan akan dihapus permanen.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#4f46e5',
+            confirmButtonText: 'Ya, Hapus!',
+            cancelButtonText: 'Batal',
+            background: '#1e293b',
+            color: '#f8fafc'
+        });
+
+        if (result.isConfirmed) {
+            try {
+                await API.delete('customers.php?id=' + id);
+                UI.showToast('Data pelanggan dihapus');
+                this.loadCustomers();
+            } catch (err) {
+                // Error handled by API.request (Swal alert)
+            }
+        }
     },
 
     // --- RIWAYAT VIEW ---
