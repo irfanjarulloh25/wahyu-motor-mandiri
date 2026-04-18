@@ -1,8 +1,12 @@
 // js/api.js - Global API Fetcher
 const API = {
-    baseUrl: 'api/',
+    // MVC URL Routing mechanism
+    baseUrl: 'api/index.php?url=',
 
     async request(endpoint, method = 'GET', data = null) {
+        // Build url correctly handling any additional GET parameters
+        // Example: endpoint = "customers" --> "api/index.php?url=customers"
+        // Example: endpoint = "customers&id=1" --> "api/index.php?url=customers&id=1"
         const url = this.baseUrl + endpoint;
         const options = {
             method,
@@ -70,3 +74,5 @@ const UI = {
         });
     }
 };
+
+export { API, UI };

@@ -1,4 +1,6 @@
 // js/auth.js - Authentication Logic
+import { API } from './api.js';
+
 document.addEventListener('DOMContentLoaded', () => {
     const loginForm = document.getElementById('login-form');
     const authPage = document.getElementById('auth-page');
@@ -8,7 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const checkAuth = async () => {
         try {
-            const data = await API.get('auth.php?action=check');
+            const data = await API.get('auth/check');
             if (data.loggedIn) {
                 showApp(data.user);
             } else {
@@ -51,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     try {
-        const data = await API.post('auth.php?action=login', { username, password });
+        const data = await API.post('auth/login', { username, password });
 
         // ✅ Success Login
         Swal.fire({
@@ -95,7 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!confirm.isConfirmed) return;
 
     try {
-        await API.get('auth.php?action=logout');
+        await API.get('auth/logout');
 
         // ✅ Success Logout
         Swal.fire({
